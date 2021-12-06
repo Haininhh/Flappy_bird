@@ -1,27 +1,26 @@
 import Phaser from "phaser";
 import game from "../main";
 
-var bird: any;
-let pipe: any;
-let base: any;
+let bird: Phaser.Physics.Arcade.Sprite;
+let base: Phaser.Physics.Arcade.Sprite;
+let gapsGroup: Phaser.Physics.Arcade.Group;
+let pipesGroup: Phaser.Physics.Arcade.Group;
 let cursors: any;
-let background: any;
-const PIPES_TO_RENDER = 100;
-let bottom_pipe: any[] = [];
-let top_pipe: any[] = [];
+let background: Phaser.GameObjects.Image;
+let tileSprites: Phaser.GameObjects.TileSprite[];
+let PIPES_TO_RENDER: number = 5;
+let pipePositionY: number = 100;
+let pipeDistance: number = 220;
+let bottom_pipe: Phaser.Physics.Arcade.Sprite;
+let top_pipe: Phaser.Physics.Arcade.Sprite;
 let gameOver: boolean = false;
-let gameOverBanner;
+let gameOverBanner: Phaser.GameObjects.Image;
 let pause;
 let resume;
-let restart_button;
+let restart_button: Phaser.GameObjects.Image;
 let restart_screen;
-let distance;
 let score;
 let scoreGroup;
-let xPos = 0; //distance between columns
-let firstRandomNumber;
-let offset; // random number from -100 to 100
-let initOffsetY: number[] = [];
 let gameStarted;
 
 export default class FlappyBirdScene extends Phaser.Scene {
@@ -33,7 +32,14 @@ export default class FlappyBirdScene extends Phaser.Scene {
 	isPause = false;
 
 	preload() {
-		this.load.image("backgroundDay", "assets/background-day.png");
+		this.load.spritesheet("backgroundDay", "assets/background-day.png", {
+			frameWidth: 288,
+			frameHeight: 512,
+		});
+		this.load.spritesheet("base", "assets/base.png", {
+			frameWidth: 336,
+			frameHeight: 112,
+		});
 		this.load.image("0", "assets/0.png");
 		this.load.image("1", "assets/1.png");
 		this.load.image("2", "assets/2.png");
@@ -43,7 +49,6 @@ export default class FlappyBirdScene extends Phaser.Scene {
 		this.load.image("6", "assets/6.png");
 		this.load.image("8", "assets/8.png");
 		this.load.image("9", "assets/9.png");
-		this.load.image("base", "assets/base.png");
 		this.load.image("bluebird", "assets/bluebird-midflap.png");
 		this.load.image("pipe", "assets/pipe-red.png");
 		// Game Over
@@ -57,13 +62,16 @@ export default class FlappyBirdScene extends Phaser.Scene {
 	}
 
 	create() {
-		// add background and base
-		background = this.add.image(144, 256, "backgroundDay").setInteractive();
-		background.on("pointerdown", this.prepareGame);
-		this.createPipe(); // create Pipe
-		base = this.physics.add.sprite(144, 460, "base");
+		// add background
+		background = this.add.image(144, 256, "backgroundDay");
+		// create Pipe
+		this.createPipe();
+		// add base
+		base = this.physics.add.sprite(144, 458, "base");
 		base.setCollideWorldBounds(true);
 		base.setDepth(10);
+		// tileSprites = [base];
+
 		// Bird
 		bird = this.physics.add.sprite(60, 256, "bluebird");
 
@@ -71,6 +79,9 @@ export default class FlappyBirdScene extends Phaser.Scene {
 		bird.setCollideWorldBounds(true);
 		bird.setBounce(0.2);
 		bird.setGravityY(1000); // Trọng lực
+
+		// gaps group
+		gapsGroup = this.physics.add.group();
 
 		// Score group
 		scoreGroup = this.physics.add.staticGroup();
@@ -99,19 +110,26 @@ export default class FlappyBirdScene extends Phaser.Scene {
 
 		// pause
 		pause = this.add.image(250, 50, "pause").setInteractive();
-		pause.on("pointerdown", this.pauseGame);
+		pause.on("pointerdown", () => {
+			this.pauseGame();
+		});
 		pause.setDepth(20);
 
 		// resume
 		resume = this.add.image(250, 50, "resume").setInteractive();
-		pause.on("pointerdown", this.resumeGame);
+		resume.on("pointerdown", () => {
+			this.resumeGame();
+		});
 		resume.setDepth(20);
 		resume.visible = false;
 
 		// collider event
-		this.physics.add.collider(bird, bottom_pipe, this.handleConllider);
-		this.physics.add.collider(bird, top_pipe, this.handleConllider);
-		this.physics.add.collider(bird, base, this.handleConllider);
+		this.physics.add.collider(bird, pipesGroup, () => {
+			this.handleConllider();
+		});
+		this.physics.add.collider(bird, base, () => {
+			this.handleConllider();
+		});
 	}
 
 	update() {
@@ -122,62 +140,82 @@ export default class FlappyBirdScene extends Phaser.Scene {
 		if (cursors.space.isUp) {
 			this.isKeyDown = false;
 		}
+
+		this.recyclePipes();
 	}
 
 	createPipe() {
+		// Create Pipes
+		pipesGroup = this.physics.add.group({
+			allowGravity: false,
+		});
+
 		for (let i = 0; i < PIPES_TO_RENDER; i++) {
-			firstRandomNumber = Math.floor(Math.random() * 10) + 1;
-			if (firstRandomNumber < 6) {
-				// add random positive number to pipe's new y position
-				initOffsetY[i] = Math.floor(Math.random() * 10) * 10;
-			} else {
-				// add random negative number to pipe's new y position
-				initOffsetY[i] = Math.floor(Math.random() * 10) * -10;
+			// top pipe
+			top_pipe = pipesGroup.create(600, 0, "pipe");
+			top_pipe.flipY = true;
+			// bottom pipe
+			bottom_pipe = pipesGroup.create(600, 0, "pipe");
+
+			// callback placePipe function
+			this.placePipe(top_pipe, bottom_pipe);
+		}
+
+		pipesGroup.getChildren().forEach((child) => {});
+		// Sets the horizontal velocity of each Group pipe.
+		pipesGroup.setVelocityX(-220);
+	}
+	// placePipe callback function receive 2 parameters and execute getRightPipe function
+	// and set position for top and bottom pipe
+	placePipe(top_pipe, bottom_pipe) {
+		const rightPipeX = this.getRightPipe();
+
+		pipePositionY = Phaser.Math.Between(-100, 100);
+
+		// Sets position for top pipe
+		top_pipe.x = rightPipeX + pipeDistance; // pipeDistance: distance between 2 pipesGroup
+		top_pipe.y = pipePositionY;
+		// Sets position for bottom pipe
+		bottom_pipe.x = top_pipe.x;
+		bottom_pipe.y = top_pipe.y + 420;
+	}
+	// getRightPipe execute pipesGroup loop and find max number from pipex to rightX(0)
+	getRightPipe() {
+		let rightX: number = 0;
+		pipesGroup.getChildren().forEach((pipe) => {
+			rightX = Math.max(pipe.body.gameObject.x, rightX);
+		});
+		return rightX;
+	}
+
+	// check pipe position right, if pipe.right < 0: push pipe to tempPipes array
+	// then check tempPipes.length === 2 callback placePipe() function with 2 arguments
+	//	pipe_top and pipe_bottom
+	recyclePipes() {
+		const tempPipes: Phaser.GameObjects.GameObject[] = [];
+		const pipeList = pipesGroup.getChildren();
+
+		if (!pipeList && pipeList.length <= 0) return;
+		pipesGroup.getChildren().forEach((pipe: Phaser.GameObjects.GameObject) => {
+			if (pipe == undefined) return;
+			if (pipe.body.gameObject.getBounds().right < 0) {
+				tempPipes.push(pipe);
+				if (tempPipes.length === 2) {
+					this.placePipe(tempPipes[0], tempPipes[1]);
+				}
 			}
-		}
-
-		// Create Top Pipes
-		for (let i = 0; i < PIPES_TO_RENDER; i++) {
-			offset = initOffsetY[i];
-			// 800 + xPos: distance from bird to first column
-			// -20 + offset: distance from top background
-			top_pipe[i] = this.physics.add.sprite(800 + xPos, -20 + offset, "pipe");
-			top_pipe[i].body.setAllowGravity(false);
-			top_pipe[i].body.setVelocityX(-200);
-			top_pipe[i].immovable = true; // won't move at all(bất di bất dịch)
-			top_pipe[i].flipY = true; // Pipe will be flipped upside down(lật ngược lại)
-			xPos += 220; //distance between columns
-		}
-
-		// Create Bottom Pipes
-		xPos = 0; // reset xPos back to zero
-
-		for (let i = 0; i < PIPES_TO_RENDER; i++) {
-			offset = initOffsetY[i];
-			// 800 + xPos: distance from bird to first column
-			// 400 + offset: distance from bottom background
-			bottom_pipe[i] = this.physics.add.sprite(
-				800 + xPos,
-				400 + offset,
-				"pipe"
-			);
-			bottom_pipe[i].body.setAllowGravity(false);
-			bottom_pipe[i].body.setVelocityX(-200);
-			bottom_pipe[i].immovable = true; // won't move at all(bất di bất dịch)
-			xPos += 220; //distance between columns
-		}
+		});
 	}
 
 	handleConllider() {
 		gameOver = true;
 		pause.visible = false;
 		bird.body.enable = false;
-		for (let i = 0; i < PIPES_TO_RENDER; i++) {
-			top_pipe[i].body.enable = false;
-			bottom_pipe[i].body.enable = false;
-		}
 		gameOverBanner.visible = true;
 		restart_button.visible = true;
+		pipesGroup.getChildren().forEach((pipe) => {
+			pipe.body.gameObject.enable = false;
+		});
 	}
 
 	// Update score
@@ -200,16 +238,15 @@ export default class FlappyBirdScene extends Phaser.Scene {
 
 	// restartGame
 	restartGame() {
-		bird.destroy();
-		for (let i = 0; i < PIPES_TO_RENDER; i++) {
-			top_pipe[i].destroy();
-			bottom_pipe[i].destroy();
-		}
-		gameOver = false;
-		gameOverBanner.visible = false;
-		restart_button.visible = false;
-		restart_screen.visible = true;
-
+		// bird.destroy();
+		// for (let i = 0; i < PIPES_TO_RENDER; i++) {
+		// 	top_pipe[i].destroy();
+		// 	bottom_pipe[i].destroy();
+		// }
+		// gameOver = false;
+		// gameOverBanner.visible = false;
+		// restart_button.visible = false;
+		// restart_screen.visible = true;
 		// this.startGame;
 	}
 
@@ -247,47 +284,38 @@ export default class FlappyBirdScene extends Phaser.Scene {
 	}
 
 	startGame() {
-		if (gameOver) return;
-		gameStarted = true;
-		restart_screen.visible = false;
-
-		const gameScene = game.scene.scenes[0];
-
-		bird.reset;
-
-		// bird.setCollideWorldBounds(false);
-		// bird.setBounce(0.2);
-		// bird.setGravityY(1000); // Trọng lực
-
-		() => {
-			this.createPipe();
-		};
-
-		gameScene.physics.add.collider(bird, bottom_pipe, this.handleConllider);
-		gameScene.physics.add.collider(bird, top_pipe, this.handleConllider);
-		gameScene.physics.add.collider(bird, base, this.handleConllider);
-		gameScene.physics.resume();
-
-		const initScore = scoreGroup.create(144, 30, "0").setDepth(20);
+		// if (gameOver) return;
+		// gameStarted = true;
+		// restart_screen.visible = false;
+		// const gameScene = game.scene.scenes[0];
+		// () => {
+		// 	this.createPipe();
+		// };
+		// gameScene.physics.add.collider(bird, bottom_pipe, this.handleConllider);
+		// gameScene.physics.add.collider(bird, top_pipe, this.handleConllider);
+		// gameScene.physics.add.collider(bird, base, this.handleConllider);
+		// gameScene.physics.resume();
+		// const initScore = scoreGroup.create(144, 30, "0").setDepth(20);
 	}
 
 	pauseGame() {
-		// pause.visible = false;
-		// resume.visible = true;
-
-		bird.body.moves = !bird.body.moves;
-		for (let i = 0; i < PIPES_TO_RENDER; i++) {
-			top_pipe[i].body.moves = !top_pipe[i].body.moves;
-			bottom_pipe[i].body.moves = !bottom_pipe[i].body.moves;
+		if (this.isPause === false) {
+			this.isPause = true;
+			pause.visible = false;
+			resume.visible = true;
+			pause.setActive(false);
+			bird.body.enable = false;
+			// pipesGroup.destroy(true, true);
 		}
 	}
 	resumeGame() {
-		// pause.visible = true;
-		// resume.visible = false;
-		// bird.body.moves = true;
-		// for (let i = 0; i < PIPES_TO_RENDER; i++) {
-		// 	top_pipe[i].body.moves = true;
-		// 	bottom_pipe[i].body.moves = true;
-		// }
+		if (this.isPause === true) {
+			this.isPause = false;
+			pause.visible = true;
+			resume.visible = false;
+			pause.setActive(true);
+			bird.body.enable = true;
+			// pipesGroup.destroy(false, false);
+		}
 	}
 }
