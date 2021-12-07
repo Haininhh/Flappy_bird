@@ -44,10 +44,10 @@ module.exports = {
           from: "./src/*.css",
           to: "[name][ext]",
         },
-        {
-          from: "./src/*.ico",
-          to: "[name][ext]",
-        },
+        // {
+        //   from: "./src/*.ico",
+        //   to: "[name][ext]",
+        // },
         {
           from: "./src/assets",
           to: "assets",

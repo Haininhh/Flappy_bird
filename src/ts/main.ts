@@ -4,7 +4,7 @@ import FlappyBirdScene from "./Scenes/FlappyBirdScene";
 
 const config = {
 	type: Phaser.AUTO,
-	width: 288,
+	width: 2880,
 	height: 512,
 	physics: {
 		default: "arcade",
@@ -14,6 +14,6 @@ const config = {
 	},
 	scene: [FlappyBirdScene],
 };
-const game = new Phaser.Game(config);
+const game: Phaser.Game = new Phaser.Game(config);
 
 export default game;
