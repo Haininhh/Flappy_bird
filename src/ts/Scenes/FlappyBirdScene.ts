@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import game from "../main";
+import ResumeScene from "./ResumeScene";
 
 let bird: Phaser.Physics.Arcade.Sprite;
 let base: Phaser.Physics.Arcade.Sprite;
@@ -24,14 +25,20 @@ let scoreGroup;
 let gameStarted: boolean = true;
 let nextPipes: number;
 
-export default class FlappyBirdScene extends Phaser.Scene {
+export default class FlappyBirdScene extends ResumeScene {
 	constructor() {
-		super("hello-world");
+		super("FlappyBirdScene");
+	}
+	pauseGame() {
+		Phaser.Scene.call(pause, { key: "pauseGame" });
+		console.log("pause");
+		pause;
 	}
 
 	isKeyDown = false;
 	isPause = false;
 	gap: Phaser.GameObjects.Line;
+	upButton: Phaser.Input.Keyboard.Key;
 
 	preload() {
 		this.load.spritesheet("backgroundDay", "assets/background-day.png", {
@@ -64,6 +71,16 @@ export default class FlappyBirdScene extends Phaser.Scene {
 	}
 
 	create() {
+		// Create Pipes
+		pipesGroup = this.physics.add.group({
+			allowGravity: false,
+		});
+
+		// gaps group
+		gapsGroup = this.physics.add.group({
+			allowGravity: false,
+		});
+
 		// keyboard event
 		cursors = this.input.keyboard.createCursorKeys();
 		// Start game
@@ -90,27 +107,34 @@ export default class FlappyBirdScene extends Phaser.Scene {
 
 		// pause
 		pause = this.add.image(250, 50, "pause").setInteractive();
-		pause.on("pointerdown", () => {
-			this.pauseGame();
-		});
+		pause.on(
+			"pointerdown",
+			() => {
+				this.scene.pause();
+				this.scene.launch("resumeGame");
+			},
+			pause
+		);
 		pause.setDepth(20);
 		pause.visible = false;
 
-		// resume
-		resume = this.add.image(250, 50, "resume").setInteractive();
-		resume.on("pointerdown", () => {
-			this.resumeGame();
-		});
-		resume.setDepth(20);
-		resume.visible = false;
+		this.upButton = this.input.keyboard.addKey(
+			Phaser.Input.Keyboard.KeyCodes.UP
+		);
 	}
 
 	update() {
+		if (this.isPause) {
+			return;
+		}
 		if (gameOver || !gameStarted) return;
 
-		if (cursors.space.isDown && this.isKeyDown === false) {
+		if (
+			(cursors.space.isDown && this.isKeyDown === false) ||
+			Phaser.Input.Keyboard.JustDown(this.upButton)
+		) {
 			this.isKeyDown = true;
-			bird.setVelocityY(-350);
+			this.moveBird();
 		}
 		if (cursors.space.isUp) {
 			this.isKeyDown = false;
@@ -120,9 +144,6 @@ export default class FlappyBirdScene extends Phaser.Scene {
 			if (!child) return;
 			if (child.body.gameObject.x < -50) child.destroy();
 			else pipesGroup.setVelocityX(-pipeDistance);
-		});
-		gapsGroup.children.iterate((child) => {
-			gapsGroup.setVelocityX(-pipeDistance);
 		});
 
 		nextPipes++;
@@ -136,12 +157,8 @@ export default class FlappyBirdScene extends Phaser.Scene {
 	createPipe(scene) {
 		if (!gameStarted || gameOver) return;
 
+		// Random position Y
 		pipePositionY = Phaser.Math.Between(-100, 100);
-		this.gap = scene.add.line(500, pipeDistance + 210, 0, 0, 0, 98);
-		this.gap.visible = false;
-
-		// if (this.gap === undefined) return;
-		// else gapsGroup.add(this.gap, true);
 
 		// top pipe
 		top_pipe = pipesGroup.create(500, 0, "pipe");
@@ -153,6 +170,12 @@ export default class FlappyBirdScene extends Phaser.Scene {
 		top_pipe.y = pipePositionY;
 		// Sets position for bottom pipe
 		bottom_pipe.y = top_pipe.y + 420;
+
+		// add gap
+		this.gap = scene.add.line(500, pipeDistance + 210, 0, 0, 0, 98);
+		gapsGroup.add(this.gap);
+		this.gap.visible = false;
+		this.gap.body.gameObject.body.allowGravity = false;
 	}
 	// getRightPipe execute pipesGroup loop and find max number from pipex to rightX(0)
 
@@ -198,7 +221,6 @@ export default class FlappyBirdScene extends Phaser.Scene {
 
 		gameOverBanner.visible = false;
 		restart_button.visible = false;
-		start_screen.visible = true;
 
 		const gameScene: Phaser.Scene = game.scene.scenes[0];
 
@@ -208,42 +230,30 @@ export default class FlappyBirdScene extends Phaser.Scene {
 	}
 
 	prepareGame(gameScene) {
-		console.log("prepare game");
 		nextPipes = 0;
 		gameOver = false;
 		start_screen.visible = true;
 
 		// add background
-		background = this.add.image(144, 256, "backgroundDay").setInteractive();
+		background = gameScene.add
+			.image(144, 256, "backgroundDay")
+			.setInteractive();
 		background.on("pointerdown", () => {
-			if (gameOver) return;
-			if (!gameStarted) this.startGame();
-		});
-		// Create Pipes
-		pipesGroup = this.physics.add.group({
-			allowGravity: false,
+			this.moveBird();
 		});
 
 		// add base
-		base = this.physics.add.sprite(144, 458, "base");
+		base = gameScene.physics.add.sprite(144, 458, "base");
 		base.setCollideWorldBounds(true);
 		base.setDepth(10);
-		// tileSprites = [base];
 
 		// Bird
-
-		bird = this.physics.add.sprite(60, 256, "bluebird");
+		bird = gameScene.physics.add.sprite(60, 256, "bluebird");
 
 		// ngăn chặn hành vi người chơi chạy ra khỏi các cạnh của màn hình
 		bird.setCollideWorldBounds(true);
 		bird.setBounce(0.2);
-		bird.setGravityY(1000); // Trọng lực
-
-		// gaps group
-		gapsGroup = this.physics.add.group({
-			allowGravity: false,
-		});
-
+		bird.setGravityY(0);
 		// Score group
 		scoreGroup = this.physics.add.staticGroup();
 
@@ -267,35 +277,22 @@ export default class FlappyBirdScene extends Phaser.Scene {
 			this.scene
 		);
 	}
+	moveBird() {
+		if (gameOver) return;
 
-	startGame() {
+		if (!gameStarted) this.startGame(game.scene.scenes[0]);
+		bird.setGravityY(1000); // Trọng lực
+		bird.setVelocityY(-350);
+	}
+
+	startGame(scene) {
 		console.log("start game");
 
-		gameStarted = true;
 		start_screen.visible = false;
+		pause.visible = true;
+
+		gameStarted = true;
 		// create Pipe
-		this.createPipe(this);
-	}
-
-	pauseGame() {
-		if (this.isPause === false) {
-			this.isPause = true;
-			pause.visible = false;
-			resume.visible = true;
-			pause.setActive(false);
-			this.scene.pause();
-		}
-	}
-	resumeGame() {
-		if (this.isPause === true) {
-			this.isPause = false;
-			pause.visible = true;
-			resume.visible = false;
-			pause.setActive(true);
-			bird.body.enable = true;
-			this.scene.resume();
-
-			// pipesGroup.destroy(false, false);
-		}
+		this.createPipe(scene);
 	}
 }
