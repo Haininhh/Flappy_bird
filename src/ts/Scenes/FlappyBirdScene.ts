@@ -16,8 +16,6 @@ let bottom_pipe: Phaser.Physics.Arcade.Sprite;
 let top_pipe: Phaser.Physics.Arcade.Sprite;
 let gameOver: boolean = false;
 let gameOverBanner: Phaser.GameObjects.Image;
-let pause: Phaser.GameObjects.Image;
-let resume: Phaser.GameObjects.Image;
 let restart_button: Phaser.GameObjects.Image;
 let start_screen: Phaser.GameObjects.Image;
 let score;
@@ -25,20 +23,16 @@ let scoreGroup;
 let gameStarted: boolean = true;
 let nextPipes: number;
 
-export default class FlappyBirdScene extends ResumeScene {
+export default class FlappyBirdScene extends Phaser.Scene {
 	constructor() {
-		super("FlappyBirdScene");
-	}
-	pauseGame() {
-		Phaser.Scene.call(pause, { key: "pauseGame" });
-		console.log("pause");
-		pause;
+		super("pauseGame");
 	}
 
 	isKeyDown = false;
-	isPause = false;
 	gap: Phaser.GameObjects.Line;
 	upButton: Phaser.Input.Keyboard.Key;
+	resume: Phaser.GameObjects.Image;
+	pause: Phaser.GameObjects.Image;
 
 	preload() {
 		this.load.spritesheet("backgroundDay", "assets/background-day.png", {
@@ -106,17 +100,13 @@ export default class FlappyBirdScene extends ResumeScene {
 		restart_button.visible = false;
 
 		// pause
-		pause = this.add.image(250, 50, "pause").setInteractive();
-		pause.on(
-			"pointerdown",
-			() => {
-				this.scene.pause();
-				this.scene.launch("resumeGame");
-			},
-			pause
-		);
-		pause.setDepth(20);
-		pause.visible = false;
+		this.pause = this.add.image(250, 50, "pause").setInteractive();
+		this.pause.setDepth(20);
+		this.pause.visible = false;
+		this.pause.on("pointerdown", () => {
+			this.scene.pause();
+			this.scene.launch("resumeGame");
+		});
 
 		this.upButton = this.input.keyboard.addKey(
 			Phaser.Input.Keyboard.KeyCodes.UP
@@ -124,9 +114,6 @@ export default class FlappyBirdScene extends ResumeScene {
 	}
 
 	update() {
-		if (this.isPause) {
-			return;
-		}
 		if (gameOver || !gameStarted) return;
 
 		if (
@@ -135,8 +122,7 @@ export default class FlappyBirdScene extends ResumeScene {
 		) {
 			this.isKeyDown = true;
 			this.moveBird();
-		}
-		if (cursors.space.isUp) {
+		} else if (cursors.space.isUp) {
 			this.isKeyDown = false;
 		}
 
@@ -186,7 +172,6 @@ export default class FlappyBirdScene extends ResumeScene {
 		gameOver = true;
 		gameStarted = false;
 
-		pause.visible = false;
 		bird.body.enable = false;
 
 		gameOverBanner.visible = true;
@@ -229,7 +214,7 @@ export default class FlappyBirdScene extends ResumeScene {
 		gameScene.physics.resume();
 	}
 
-	prepareGame(gameScene) {
+	prepareGame(gameScene: Phaser.Scene) {
 		nextPipes = 0;
 		gameOver = false;
 		start_screen.visible = true;
@@ -253,7 +238,7 @@ export default class FlappyBirdScene extends ResumeScene {
 		// ngăn chặn hành vi người chơi chạy ra khỏi các cạnh của màn hình
 		bird.setCollideWorldBounds(true);
 		bird.setBounce(0.2);
-		bird.setGravityY(0);
+
 		// Score group
 		scoreGroup = this.physics.add.staticGroup();
 
@@ -289,7 +274,7 @@ export default class FlappyBirdScene extends ResumeScene {
 		console.log("start game");
 
 		start_screen.visible = false;
-		pause.visible = true;
+		this.pause.visible = true;
 
 		gameStarted = true;
 		// create Pipe
