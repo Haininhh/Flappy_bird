@@ -8,13 +8,13 @@ export default class ResumeScene extends Phaser.Scene {
 	}
 
 	create() {
-		const pauseScene = this.scene.get("pauseGame") as FlappyBirdScene;
+		const pauseScene = this.scene.get("gameplay") as FlappyBirdScene;
 		let { resume } = pauseScene;
 		resume = this.add.image(250, 50, "resume").setInteractive();
 		this.input.once(
 			"pointerdown",
 			() => {
-				this.scene.resume("pauseGame");
+				this.scene.resume("gameplay");
 				resume.visible = false;
 			},
 			this

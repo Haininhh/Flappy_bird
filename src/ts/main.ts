@@ -2,6 +2,7 @@ import Phaser from "phaser";
 
 import FlappyBirdScene from "./Scenes/FlappyBirdScene";
 import ResumeScene from "./Scenes/ResumeScene";
+import StartScene from "./Scenes/StartGame";
 
 const config = {
 	type: Phaser.AUTO,
@@ -13,7 +14,7 @@ const config = {
 			gravity: { y: 300 },
 		},
 	},
-	scene: [FlappyBirdScene, ResumeScene],
+	scene: [FlappyBirdScene, ResumeScene, StartScene],
 };
 const game: Phaser.Game = new Phaser.Game(config);
 
