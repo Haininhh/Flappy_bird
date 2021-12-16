@@ -11,7 +11,6 @@ let top_pipe: Phaser.Physics.Arcade.Sprite;
 let gameOver: boolean = false;
 let gameOverBanner: Phaser.GameObjects.Image;
 let restart_button: Phaser.GameObjects.Image;
-// let start_screen: Phaser.GameObjects.Image;
 let score: number = 0;
 const assets = {
 	scoreBoard: {
@@ -37,7 +36,7 @@ export default class FlappyBirdScene extends Phaser.Scene {
 	}
 
 	bird: Phaser.Physics.Arcade.Sprite;
-	base: Phaser.Physics.Arcade.Sprite;
+	base: Phaser.GameObjects.TileSprite;
 	isKeyDown = false;
 	isMovedBird = true;
 	upButton: Phaser.Input.Keyboard.Key;
@@ -45,6 +44,7 @@ export default class FlappyBirdScene extends Phaser.Scene {
 	pause: Phaser.GameObjects.Image;
 	scoreboardGroup: Phaser.Physics.Arcade.StaticGroup;
 	score0: Phaser.GameObjects.Image;
+	baseGroup: Phaser.Physics.Arcade.StaticGroup;
 
 	preload() {
 		this.load.spritesheet("backgroundDay", "assets/background-day.png", {
@@ -85,32 +85,12 @@ export default class FlappyBirdScene extends Phaser.Scene {
 			this.moveBird();
 		});
 
+		// add base group
+		this.baseGroup = this.physics.add.staticGroup();
 		// add base
-		this.base = this.physics.add.sprite(144, 458, "base");
-		this.base.setCollideWorldBounds(true);
+		this.base = this.add.tileSprite(144, 458, 288, 112, "base");
 		this.base.setDepth(10);
-
-		// Ground animations
-		this.anims.create({
-			key: "moving-base",
-			frames: this.anims.generateFrameNumbers("base", {
-				start: 0,
-				end: 2,
-			}),
-			frameRate: 15,
-			repeat: -1,
-		});
-
-		this.anims.create({
-			key: "stop-base",
-			frames: [
-				{
-					key: "base",
-					frame: 0,
-				},
-			],
-			frameRate: 20,
-		});
+		this.baseGroup.add(this.base);
 
 		// Create Pipes
 		pipesGroup = this.physics.add.group({
@@ -193,6 +173,8 @@ export default class FlappyBirdScene extends Phaser.Scene {
 			(child.body as Phaser.Physics.Arcade.Body).setVelocityX(-pipeDistance);
 		});
 
+		this.base.tilePositionX += 2;
+
 		nextPipes++;
 		if (nextPipes === 60) {
 			this.createPipe(game.scene.scenes[0]);
@@ -234,8 +216,6 @@ export default class FlappyBirdScene extends Phaser.Scene {
 		gameStarted = false;
 
 		this.bird.body.enable = false;
-		const a = this.base.anims.play("stop-base");
-		console.log("stop: ", a);
 
 		gameOverBanner.visible = true;
 		restart_button.visible = true;
@@ -271,8 +251,6 @@ export default class FlappyBirdScene extends Phaser.Scene {
 
 	// restartGame
 	restartGame() {
-		console.log("restart game");
-
 		this.bird.destroy();
 		pipesGroup.clear(true, true);
 		gapsGroup.clear(true, true);
@@ -316,7 +294,7 @@ export default class FlappyBirdScene extends Phaser.Scene {
 		);
 		gameScene.physics.add.collider(
 			this.bird,
-			this.base,
+			this.baseGroup,
 			() => {
 				this.handleConllider();
 			},
@@ -343,8 +321,6 @@ export default class FlappyBirdScene extends Phaser.Scene {
 	startGame(scene) {
 		this.pause.setVisible(true);
 		gameStarted = true;
-		const a = this.base.anims.play("moving-base", true);
-		console.log("anims: ", a);
 
 		this.scoreboardGroup.clear(true, true);
 

@@ -6,7 +6,7 @@ import StartScene from "./Scenes/StartGame";
 
 const config = {
 	type: Phaser.AUTO,
-	width: 2880,
+	width: 288,
 	height: 512,
 	physics: {
 		default: "arcade",
